@@ -1,0 +1,32 @@
+# CCTV Analytics — service orchestration.
+# Each capability lives in services/<name> with its own Dockerfile.
+# Usage:  docker compose up --build lpr
+
+services:
+  lpr:
+    build:
+      context: ./services/lpr
+      args:
+        NETFREE: ${NETFREE:-false}
+    image: cctv-analytics/lpr:latest
+    container_name: cctv-lpr
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      VIDEO_PATH: ${LPR_VIDEO_PATH:-data/videos/sample_10s.mp4}
+      VEHICLE_MODEL: models/yolov8n.pt
+      PLATE_MODEL: models/plate_detector.pt
+      EASYOCR_MODELS: /app/easyocr_models
+      RESULTS_CSV: output/results.csv
+      INTERPOLATED_CSV: output/results_interpolated.csv
+      OUTPUT_VIDEO: output/annotated.mp4
+    volumes:
+      - ./services/lpr/models:/app/models:ro
+      - ./services/lpr/easyocr_models:/app/easyocr_models:ro
+      - ./services/lpr/data:/app/data:ro
+      - ./services/lpr/output:/app/output
+    restart: "no"
+
+  # Additional services (object analytics, alerts, database, dashboard)
+  # are added here by the team, following the same pattern.

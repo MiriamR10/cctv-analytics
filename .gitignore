@@ -1,0 +1,46 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ---- Models / weights (distributed separately, see README) ----
+*.pt
+*.pth
+*.onnx
+*.engine
+*.weights
+**/models/*
+**/easyocr_models/*
+!**/models/.gitkeep
+!**/easyocr_models/.gitkeep
+
+# ---- Data and outputs ----
+*.mp4
+*.avi
+*.mkv
+*.csv
+**/data/*
+**/output/*
+!**/data/.gitkeep
+!**/data/videos/
+**/data/videos/*
+!**/data/videos/.gitkeep
+!**/output/.gitkeep
+runs/
+
+# ---- Environment / secrets ----
+.env
+
+# ---- Local-only folders ----
+_local_archive/
+
+# ---- OS / IDE ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
