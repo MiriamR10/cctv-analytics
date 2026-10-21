@@ -1,131 +1,151 @@
 # CCTV Analytics
 
-מערכת אנליטיקה לצילומי מצלמות במעגל סגור (CCTV). המערכת בנויה משירותים (services) עצמאיים: כל יכולת יושבת בתיקייה משלה עם Dockerfile משלה, וכולן מתוזמרות יחד בקובץ `docker-compose.yml` אחד.
+מערכת אנליטיקה לצילומי מצלמות במעגל סגור (CCTV). המערכת מזהה אובייקטים ורכבים בסרטונים, מרכזת את כל הממצאים בבסיס נתונים אחד, ומאפשרת לתחקר אותם, להשוות ביניהם ולאתר חריגות משגרה דרך ממשק אחד.
 
-## יכולות היעד
+## הסיפור: מצילום לתובנה
 
-| # | יכולת | שירות | סטטוס |
-|---|-------|-------|-------|
-| 1 | אנליטיקה וזיהוי אובייקטים מוגדרים במרחב, לפי דרישה משתנה | — | מתוכנן |
-| 2 | התרעה פרואקטיבית לפי חוקיות בסביבה מתועדת | — | מתוכנן |
-| 3 | ריכוז בסיס נתונים | — | מתוכנן |
-| 4 | תחקור והשוואת ממצאים, כולל היסטורית | — | מתוכנן |
-| 5 | זיהוי דפוסים וחריגות משגרה ומחוקיות מוגדרת | — | מתוכנן |
-| 6 | זיהוי רכבים לפי לוחית רישוי (LPR) | [`services/lpr`](services/lpr) | ✅ גרסה ראשונה |
-| 7 | דשבורד מנהלים לריכוז נתונים וסטטיסטיקות | — | מתוכנן |
+```
+ מצלמות / סרטונים
+        │
+        ├──► [detection]  זיהוי אובייקטים לפי דרישה  ──┐   אנשים, רכבים וכל מחלקה מוגדרת
+        │                  + מעקב (tracking)            │
+        │                                               ▼
+        └──► [lpr]        זיהוי רכבים + לוחית רישוי ──► [forensic] ◄──► PostgreSQL
+                          (OCR)                          │              (בסיס נתונים מרכזי)
+                                                         ▼
+                                       ממשק תחקור: חיפוש, ציר זמן, השוואות,
+                                       חריגות מול baseline, חורי תיעוד, יומן ביקורת
+```
+
+1. **קליטה וזיהוי.** סרטון נכנס לאחד ממנועי הזיהוי. מנוע `detection` מזהה כל סוג אובייקט שהארגון מגדיר, ומנוע `lpr` מתמחה ברכבים ובקריאת לוחיות רישוי.
+2. **ריכוז.** כל ממצא נשלח אוטומטית כ"אירוע" לבסיס הנתונים המרכזי, עם המצלמה, האזור, הזמן, סוג האובייקט, מזהה הישות (למשל מספר רישוי) ורמת הביטחון.
+3. **תחקור.** בממשק `forensic` אפשר לחפש לפי זמן, מצלמה, אזור או לוחית, לראות ציר זמן של ישות בין מצלמות, להשוות בין תקופות, לזהות חריגות מול תקופת בסיס, ולאתר זמנים שבהם מצלמה לא הקליטה.
+
+## מיפוי ליכולות שהתבקשו
+
+| # | יכולת נדרשת | איפה במערכת | סטטוס |
+|---|-------------|--------------|-------|
+| 1 | אנליטיקה וזיהוי אובייקטים מוגדרים במרחב, לפי דרישה משתנה | `detection`: מחלקות נבחרות לכל בקשה (`object_classes`) או בהגדרה (`DETECTION_CLASSES`), מודל ניתן להחלפה | ✅ |
+| 2 | התרעה פרואקטיבית לפי חוקיות | אירועים עם רמת חומרה (`severity`); מנגנון חוקים ושליחת התראות | 🟡 חלקי |
+| 3 | ריכוז בסיס נתונים | `forensic` + PostgreSQL: מצלמות, קטעי וידאו, אירועים, יומן ביקורת | ✅ |
+| 4 | תחקור והשוואת ממצאים, כולל היסטורית | `forensic`: `/search`, `/timeline`, `/compare` (ישות מול ישות, תקופה מול תקופה) | ✅ |
+| 5 | זיהוי דפוסים וחריגות משגרה | `forensic`: `/compare` במצב `vs_baseline` (חריגה של 30% ומעלה), זיהוי חורי תיעוד | ✅ |
+| 6 | זיהוי רכבים לפי לוחית רישוי | `lpr`: YOLOv8, מעקב SORT ו-EasyOCR, והפרסום ל-`forensic` | ✅ |
+| 7 | דשבורד מנהלים | ממשק `forensic` (http://localhost:8005) עם פילוחים לפי סוג ומצלמה | 🟡 בסיסי |
 
 ### דרישות פריסה
-- **פריסה בתצורות שונות**: על שרתי הארגון, בענן ארגוני או בענן ציבורי. כל השירותים ארוזים כקונטיינרים ואינם תלויים בספק ענן מסוים.
-- **תפעול עצמאי**: הצוות הטכני של הארגון יכול להרים ולתפעל את המערכת בעצמו לאחר הכשרה. ההגדרות נקבעות דרך משתני סביבה וקובץ `.env`, בלי לשנות קוד.
+- **פריסה בתצורות שונות.** כל רכיב ארוז כקונטיינר, וכל המערכת עולה בפקודה אחת: על שרת של הארגון, בענן ארגוני או בענן ציבורי. אין תלות בשירות ענן מסוים.
+- **סביבה סגורה.** המודלים נטענים מקבצים מקומיים, וההרצה עצמה לא דורשת גישה לאינטרנט.
+- **תפעול עצמאי.** כל ההגדרות (סיסמאות, פורטים, מודל, מחלקות, שמות מצלמות) נמצאות בקובץ `.env` אחד, בלי לשנות קוד.
 
 ## מבנה הריפו
 
 ```
 cctv-analytics/
-├── docker-compose.yml        # תזמור כל השירותים
-├── .env.example              # תבנית להגדרות סביבה
-├── README.md
+├── docker-compose.yml          # כל המערכת
+├── .env.example                # כל ההגדרות במקום אחד
+├── certs/                      # תעודות CA של הארגון (לא בגיט)
+├── tools/
+│   └── generate_demo_video.py  # יצירת סרטון רחוב סינתטי לבדיקות
 └── services/
-    └── lpr/                  # זיהוי לוחיות רישוי
-        ├── Dockerfile
-        ├── requirements.txt
-        ├── run_pipeline.sh   # מריץ את כל שלבי ה-pipeline לפי הסדר
-        ├── main.py           # זיהוי רכבים, מעקב (SORT), זיהוי לוחית ו-OCR
-        ├── add_missing_data.py  # השלמת פריימים חסרים באינטרפולציה
-        ├── visualize.py      # יצירת סרטון מסומן
-        ├── util.py           # OCR, אימות פורמט לוחית, כתיבת CSV
-        ├── sort_lite.py      # מימוש SORT ל-tracking
-        ├── models/           # משקולות YOLO (לא בגיט)
-        ├── easyocr_models/   # מודלי EasyOCR (לא בגיט)
-        ├── data/videos/      # סרטוני קלט (לא בגיט)
-        └── output/           # תוצרים (לא בגיט)
+    ├── forensic/               # בסיס נתונים מרכזי, API תחקור וממשק
+    │   ├── app/                #   FastAPI + SQLAlchemy + ממשק סטטי
+    │   └── verify.sh           #   בדיקת קצה-לקצה של ה-API
+    ├── detection/              # זיהוי אובייקטים לפי דרישה (API)
+    │   ├── app/                #   FastAPI + YOLO + ByteTrack
+    │   └── models/             #   משקולות (לא בגיט)
+    └── lpr/                    # זיהוי לוחיות רישוי (batch)
+        ├── main.py …           #   pipeline זיהוי, אינטרפולציה והצגה
+        ├── publish_events.py   #   פרסום הלוחיות ל-forensic
+        ├── models/  easyocr_models/  data/videos/  output/   (לא בגיט)
 ```
 
-## הוספת שירות חדש (לצוות)
+## הרצה
 
-1. יוצרים תיקייה `services/<שם-השירות>/` ובה `Dockerfile` ו-`requirements.txt`.
-2. מוסיפים את השירות ל-`docker-compose.yml` באותו מבנה של `lpr`.
-3. מודלים, נתונים ותוצרים נטענים כ-volumes ולא נכנסים לגיט. ה-`.gitignore` כבר מכסה `models/`, `data/` ו-`output/` בכל שירות.
-4. כל נתיב או פרמטר שמשתנה בין סביבות מגיע ממשתנה סביבה.
-5. מעדכנים את טבלת היכולות למעלה.
-
----
-
-## שירות LPR: זיהוי לוחיות רישוי
-
-### איך זה עובד
-
-```
-וידאו ─► YOLOv8n (רכבים) ─► SORT (מעקב) ─► YOLOv8 (לוחיות) ─► EasyOCR ─► CSV
-                                                                           │
-                       סרטון מסומן ◄─ visualize.py ◄─ add_missing_data.py ◄┘
-```
-
-1. **`main.py`**: לכל פריים מזהה רכבים (מחלקות COCO: מכונית, אופנוע, אוטובוס ומשאית), עוקב אחריהם עם SORT, מזהה לוחיות, משייך כל לוחית לרכב שמכיל אותה ומפענח אותה עם EasyOCR. הפלט הוא `results.csv`.
-2. **`add_missing_data.py`**: משלים באינטרפולציה לינארית את התיבות בפריימים שבהם הזיהוי נפל. הפלט הוא `results_interpolated.csv`.
-3. **`visualize.py`**: בוחר לכל רכב את הקריאה עם רמת הביטחון הגבוהה ביותר ומייצר סרטון מסומן עם חיתוך מוגדל של הלוחית.
-
-### מודלים נדרשים
-
-המודלים אינם בגיט, ויש למקם אותם ידנית:
+### 1. דרישות מקדימות
+- Docker עם Docker Compose v2.20 ומעלה (לצורך `additional_contexts`).
+- **מודלים.** אינם בגיט, ויש להעתיק אותם למקומם:
 
 | קובץ | מיקום | מקור |
 |------|-------|------|
-| `yolov8n.pt` | `services/lpr/models/` | [Ultralytics YOLOv8](https://github.com/ultralytics/assets/releases) |
-| `plate_detector.pt` | `services/lpr/models/` | מודל YOLOv8 שאומן על [dataset לוחיות של Roboflow](https://universe.roboflow.com/roboflow-universe-projects/license-plate-recognition-rxg4e/dataset/4) (זמין מהצוות) |
+| `yolo11s.pt` | `services/detection/models/` | [Ultralytics](https://github.com/ultralytics/assets/releases) |
+| `yolov8n.pt` | `services/lpr/models/` | [Ultralytics](https://github.com/ultralytics/assets/releases) |
+| `plate_detector.pt` | `services/lpr/models/` | YOLOv8 שאומן על [dataset לוחיות של Roboflow](https://universe.roboflow.com/roboflow-universe-projects/license-plate-recognition-rxg4e/dataset/4) (זמין מהצוות) |
 | `craft_mlt_25k.pth`, `english_g2.pth` | `services/lpr/easyocr_models/` | [EasyOCR Model Hub](https://www.jaided.ai/easyocr/modelhub/) |
 
-> EasyOCR מוגדר עם `download_enabled=False`, כך שהשירות רץ גם בסביבה סגורה בלי גישה לאינטרנט. מסיבה זו המודלים חייבים להיות במקומם מראש.
+- **תעודות (רק ברשת עם פרוקסי SSL ארגוני).** קבצי `.crt` שמונחים ב-`certs/` נכנסים לכל ה-images בזמן הבנייה. אם אין צורך, משאירים את התיקייה ריקה.
 
-### הרצה עם Docker (מומלץ)
-
-```bash
-# 1. הגדרות (אופציונלי)
-cp .env.example .env          # בסביבת נטפרי: NETFREE=true
-
-# 2. מקמו מודלים וסרטון קלט ב-services/lpr/models, easyocr_models, data/videos
-
-# 3. בנייה והרצה
-docker compose up --build lpr
-```
-
-התוצרים נכתבים ל-`services/lpr/output/`:
-- `results.csv`: זיהויים גולמיים לכל פריים
-- `results_interpolated.csv`: אחרי השלמת פריימים חסרים
-- `annotated.mp4`: סרטון מסומן
-
-הרצה על סרטון אחר:
+### 2. הרמת המערכת
 
 ```bash
-LPR_VIDEO_PATH=data/videos/my_video.mp4 docker compose up lpr
+cp .env.example .env                 # ועדכון סיסמה
+docker compose up -d --build         # db + forensic + detection
 ```
 
-### הרצה מקומית (פיתוח)
+| שירות | כתובת |
+|-------|-------|
+| ממשק תחקור | http://localhost:8005 |
+| API תחקור (Swagger) | http://localhost:8005/docs |
+| API זיהוי (Swagger) | http://localhost:8000/docs |
+
+### 3. נתוני הדגמה (אופציונלי)
 
 ```bash
-cd services/lpr
-python -m venv .venv && source .venv/bin/activate   # ב-Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-export EASYOCR_MODELS=./easyocr_models               # ב-Windows: set EASYOCR_MODELS=.\easyocr_models
-python main.py && python add_missing_data.py && python visualize.py
+docker compose exec forensic python -m app.seed   # 3 מצלמות, 14 ימי היסטוריה, יום חריג וחורי תיעוד
 ```
 
-### משתני סביבה
+### 4. הרצת מנועי הזיהוי
 
-| משתנה | ברירת מחדל (מקומית) | תיאור |
-|-------|---------------------|-------|
-| `VIDEO_PATH` | `data/videos/sample_10s.mp4` | סרטון קלט |
-| `VEHICLE_MODEL` | `models/yolov8n.pt` | מודל זיהוי רכבים |
-| `PLATE_MODEL` | `models/plate_detector.pt` | מודל זיהוי לוחיות |
-| `EASYOCR_MODELS` | `/app/easyocr_models` | תיקיית מודלי EasyOCR |
-| `RESULTS_CSV` | `./test.csv` | פלט שלב 1 |
-| `INTERPOLATED_CSV` | `./test_interpolated.csv` | פלט שלב 2 |
-| `OUTPUT_VIDEO` | `./out.mp4` | פלט שלב 3 |
+**זיהוי אובייקטים**: שולחים תמונה או סרטון. הממצאים נשמרים ומופיעים מיד בממשק התחקור:
 
-### מגבלות ידועות
-- **פורמט הלוחית**: `util.license_complies_format` מאמת כרגע פורמט בריטי (7 תווים: 2 אותיות, 2 ספרות, 3 אותיות). לוחיות ישראליות (7 או 8 ספרות) יידחו, וצריך להתאים את הפונקציה לפני שימוש בארץ.
-- **עיבוד אופליין**: ה-pipeline מעבד קובץ וידאו שלם ולא זרם חי (RTSP).
-- **CPU בלבד**: הקונטיינר משתמש ב-PyTorch ל-CPU. לעבודה עם GPU יש להחליף את בסיס ה-image ולהגדיר `gpu=True` ב-EasyOCR.
+```bash
+curl -F "file=@street.mp4" -F "object_classes=person,car,truck" \
+     -F "camera_name=מצלמת כניסה" -F "zone=כניסה" \
+     http://localhost:8000/api/jobs
+```
 
-### רישוי וקרדיט
-הבסיס של שירות ה-LPR מבוסס על [Automatic-License-Plate-Recognition-using-YOLOv8](https://github.com/Muhammad-Zeerak-Khan/Automatic-License-Plate-Recognition-using-YOLOv8) (MIT, ראו [`services/lpr/LICENSE`](services/lpr/LICENSE)). `sort_lite.py` מבוסס על [SORT](https://github.com/abewley/sort) (GPL-3.0).
+את התוצר המסומן מורידים מ-`GET /api/jobs/{job_id}/result`.
+
+**זיהוי לוחיות רישוי**: מניחים סרטון ב-`services/lpr/data/videos/` ומריצים:
+
+```bash
+LPR_VIDEO_PATH=data/videos/my_video.mp4 docker compose run --rm lpr
+```
+
+התוצרים נכתבים ל-`services/lpr/output/` (קובצי CSV וסרטון מסומן), וכל לוחית מזוהה מתפרסמת כאירוע `vehicle_seen` בבסיס הנתונים המרכזי.
+
+### 5. בדיקת תקינות
+
+```bash
+bash services/forensic/verify.sh
+```
+
+## הגדרות עיקריות
+
+כל ההגדרות נמצאות ב-[`.env.example`](.env.example). העיקריות:
+
+| משתנה | תיאור |
+|-------|-------|
+| `POSTGRES_PASSWORD` | סיסמת בסיס הנתונים (חובה לשנות בייצור) |
+| `DETECTION_MODEL` | קובץ המודל ב-`services/detection/models/` |
+| `DETECTION_CLASSES` | מחלקות לזיהוי, מופרדות בפסיק (ריק = הכול) |
+| `DETECTION_CONFIDENCE` | סף ביטחון מינימלי |
+| `*_CAMERA_NAME`, `*_CAMERA_ZONE` | שם המצלמה והאזור שמוצמדים לאירועים |
+| `LPR_VIDEO_START_TS` | שעת תחילת ההקלטה (ISO 8601), כדי שהאירועים יקבלו את הזמן האמיתי |
+
+## הוספת רכיב חדש (לצוות)
+1. יוצרים תיקייה `services/<שם>/` ובה `Dockerfile` שמתחיל בבלוק התעודות המשותף (ראו את הקיימים).
+2. מוסיפים את השירות ל-`docker-compose.yml` עם `<<: *build-certs`.
+3. ממצאים נשלחים ל-`forensic` דרך `POST /events/bulk`, כדי שיופיעו בתחקור.
+4. מודלים ונתונים נטענים כ-volumes ואינם נכנסים לגיט.
+
+## מגבלות ידועות ושלבים הבאים
+- **התרעות.** אין עדיין מנגנון חוקים ושליחת התראות (מייל או webhook). אפשר לבנות אותו על בסיס מצב `vs_baseline` ושדה `severity`.
+- **פורמט לוחית.** `lpr/util.py` מאמת כרגע פורמט בריטי, ולכן לוחיות ישראליות יידחו. צריך להתאים את הפונקציה לפני שימוש בארץ.
+- **וידאו חי.** שני המנועים מעבדים קבצים ולא זרם RTSP.
+- **CPU בלבד.** לעבודה עם GPU מחליפים את בסיס ה-image.
+- **הרשאות.** ה-API ללא אימות משתמשים. השדה `X-User` נרשם ביומן הביקורת בלבד.
+
+## רישוי וקרדיט
+- `lpr` מבוסס על [Automatic-License-Plate-Recognition-using-YOLOv8](https://github.com/Muhammad-Zeerak-Khan/Automatic-License-Plate-Recognition-using-YOLOv8) (MIT, ראו [`services/lpr/LICENSE`](services/lpr/LICENSE)). `sort_lite.py` מבוסס על [SORT](https://github.com/abewley/sort) (GPL-3.0).
+- מודלי YOLO של [Ultralytics](https://github.com/ultralytics/ultralytics) (AGPL-3.0). לשימוש מסחרי צריך לבדוק את תנאי הרישיון.

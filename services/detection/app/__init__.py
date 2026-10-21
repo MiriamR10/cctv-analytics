@@ -1,0 +1,1 @@
+"""CCTV analytics backend application."""

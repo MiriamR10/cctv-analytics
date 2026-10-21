@@ -44,3 +44,14 @@ _local_archive/
 Thumbs.db
 .vscode/
 .idea/
+
+# ---- Certificates (local only, never committed) ----
+certs/*
+!certs/.gitkeep
+*.crt
+*.pem
+*.key
+
+# ---- Local databases ----
+*.db
+*.sqlite

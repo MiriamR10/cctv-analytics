@@ -1,18 +1,84 @@
-# CCTV Analytics — service orchestration.
-# Each capability lives in services/<name> with its own Dockerfile.
-# Usage:  docker compose up --build lpr
+# CCTV Analytics — full system.
+#
+#   docker compose up -d --build          # db + forensic (UI) + detection API
+#   docker compose run --rm lpr           # LPR batch run on a video
+#
+# Any *.crt placed in ./certs is trusted by every image at build time.
+
+x-build-certs: &build-certs
+  additional_contexts:
+    certs: ./certs
 
 services:
+  # ---------------------------------------------------------------- central DB
+  db:
+    image: postgres:16-alpine
+    container_name: cctv-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-forensic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forensic}
+      POSTGRES_DB: ${POSTGRES_DB:-forensic}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ------------------------------------- investigation, comparison, anomalies, UI
+  forensic:
+    build:
+      context: ./services/forensic
+      <<: *build-certs
+    image: cctv-analytics/forensic:latest
+    container_name: cctv-forensic
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-forensic}:${POSTGRES_PASSWORD:-forensic}@db:5432/${POSTGRES_DB:-forensic}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${FORENSIC_PORT:-8005}:8005"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8005/health"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # ------------------------------------------- object detection API (on demand)
+  detection:
+    build:
+      context: ./services/detection
+      <<: *build-certs
+    image: cctv-analytics/detection:latest
+    container_name: cctv-detection
+    environment:
+      DETECTOR: ultralytics
+      YOLO_MODEL_PATH: /models/${DETECTION_MODEL:-yolo11s.pt}
+      DETECTION_CONFIDENCE: ${DETECTION_CONFIDENCE:-0.35}
+      DETECTION_CLASSES: ${DETECTION_CLASSES:-}
+      CAMERA_NAME: ${DETECTION_CAMERA_NAME:-Main entrance camera}
+      CAMERA_ZONE: ${DETECTION_CAMERA_ZONE:-entrance}
+      FORENSIC_URL: http://forensic:8005
+    volumes:
+      - ./services/detection/models:/models:ro
+      - detection-data:/app/data
+    depends_on:
+      forensic:
+        condition: service_healthy
+    ports:
+      - "${DETECTION_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  # ------------------------------------------- license plate recognition (batch)
   lpr:
     build:
       context: ./services/lpr
-      args:
-        NETFREE: ${NETFREE:-false}
+      <<: *build-certs
     image: cctv-analytics/lpr:latest
     container_name: cctv-lpr
-    env_file:
-      - path: .env
-        required: false
+    profiles: ["batch"]
     environment:
       VIDEO_PATH: ${LPR_VIDEO_PATH:-data/videos/sample_10s.mp4}
       VEHICLE_MODEL: models/yolov8n.pt
@@ -21,12 +87,19 @@ services:
       RESULTS_CSV: output/results.csv
       INTERPOLATED_CSV: output/results_interpolated.csv
       OUTPUT_VIDEO: output/annotated.mp4
+      CAMERA_NAME: ${LPR_CAMERA_NAME:-Parking gate camera}
+      CAMERA_ZONE: ${LPR_CAMERA_ZONE:-gate}
+      VIDEO_START_TS: ${LPR_VIDEO_START_TS:-}
+      FORENSIC_URL: http://forensic:8005
     volumes:
       - ./services/lpr/models:/app/models:ro
       - ./services/lpr/easyocr_models:/app/easyocr_models:ro
       - ./services/lpr/data:/app/data:ro
       - ./services/lpr/output:/app/output
-    restart: "no"
+    depends_on:
+      forensic:
+        condition: service_healthy
 
-  # Additional services (object analytics, alerts, database, dashboard)
-  # are added here by the team, following the same pattern.
+volumes:
+  pgdata:
+  detection-data:

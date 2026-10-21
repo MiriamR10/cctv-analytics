@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Forensic Core — תחקור והשוואת ממצאים</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --panel2: #273449;
+            --line: #334155;
+            --txt: #e2e8f0;
+            --dim: #94a3b8;
+            --acc: #38bdf8;
+            --ok: #22c55e;
+            --warn: #f59e0b;
+            --bad: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--txt);
+            font-size: 14px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 22px;
+            background: linear-gradient(90deg, #0b1220, #111c33);
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: .3px
+        }
+
+        header h1 span {
+            color: var(--acc)
+        }
+
+        .pill {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 99px;
+            background: #132e1f;
+            color: var(--ok);
+            border: 1px solid #1c5136;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            padding: 0 22px;
+            background: #0b1220;
+            border-bottom: 1px solid var(--line)
+        }
+
+        .tab {
+            padding: 11px 18px;
+            cursor: pointer;
+            color: var(--dim);
+            font-size: 13.5px;
+            border-bottom: 2px solid transparent;
+            user-select: none;
+        }
+
+        .tab:hover {
+            color: var(--txt)
+        }
+
+        .tab.on {
+            color: var(--acc);
+            border-bottom-color: var(--acc)
+        }
+
+        main {
+            padding: 20px 22px 60px;
+            max-width: 1400px;
+            margin: 0 auto
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            margin: 0 0 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--acc)
+        }
+
+        .grid {
+            display: grid;
+            gap: 12px
+        }
+
+        .g4 {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr))
+        }
+
+        label {
+            display: block;
+            font-size: 11.5px;
+            color: var(--dim);
+            margin-bottom: 5px
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--panel2);
+            color: var(--txt);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--acc)
+        }
+
+        input[type=checkbox] {
+            width: auto;
+            margin-left: 6px
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end
+        }
+
+        button {
+            padding: 9px 20px;
+            background: var(--acc);
+            color: #062231;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        button:hover {
+            filter: brightness(1.1)
+        }
+
+        button.ghost {
+            background: transparent;
+            color: var(--dim);
+            border: 1px solid var(--line)
+        }
+
+        button.ghost:hover {
+            color: var(--txt);
+            border-color: var(--acc)
+        }
+
+        .stat {
+            background: var(--panel2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .stat .v {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--acc);
+            line-height: 1.2
+        }
+
+        .stat .k {
+            font-size: 11.5px;
+            color: var(--dim);
+            margin-top: 3px
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px
+        }
+
+        th {
+            text-align: right;
+            padding: 9px 8px;
+            color: var(--dim);
+            font-weight: 600;
+            border-bottom: 1px solid var(--line);
+            font-size: 11.5px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #243044;
+            white-space: nowrap
+        }
+
+        tbody tr:hover {
+            background: #243044
+        }
+
+        .mono {
+            font-family: Consolas, monospace;
+            font-size: 12px
+        }
+
+        .sev {
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: 10.5px;
+            font-weight: 600
+        }
+
+        .sev.info {
+            background: #1e3a5f;
+            color: #7dd3fc
+        }
+
+        .sev.low {
+            background: #14532d;
+            color: #86efac
+        }
+
+        .sev.medium {
+            background: #4a3410;
+            color: #fcd34d
+        }
+
+        .sev.high {
+            background: #5c1f10;
+            color: #fdba74
+        }
+
+        .sev.critical {
+            background: #5b1414;
+            color: #fca5a5
+        }
+
+        .bar {
+            height: 7px;
+            background: #243044;
+            border-radius: 99px;
+            overflow: hidden;
+            min-width: 70px
+        }
+
+        .bar i {
+            display: block;
+            height: 100%;
+            background: var(--acc)
+        }
+
+        .tl {
+            position: relative;
+            padding-right: 22px;
+            margin-top: 6px
+        }
+
+        .tl::before {
+            content: "";
+            position: absolute;
+            right: 6px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--line);
+        }
+
+        .tl-item {
+            position: relative;
+            padding: 7px 0
+        }
+
+        .tl-item::before {
+            content: "";
+            position: absolute;
+            right: -20px;
+            top: 12px;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--acc);
+            border: 2px solid var(--bg);
+        }
+
+        .tl-item.bad::before {
+            background: var(--bad)
+        }
+
+        .tl-item.warn::before {
+            background: var(--warn)
+        }
+
+        .tl-time {
+            color: var(--dim);
+            font-size: 11.5px;
+            font-family: Consolas, monospace
+        }
+
+        .tl-body {
+            margin-top: 2px
+        }
+
+        .track {
+            background: var(--panel2);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 9px
+        }
+
+        .track-name {
+            color: var(--acc);
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 5px
+        }
+
+        .gap {
+            background: #3b1d1d;
+            border: 1px solid #7f1d1d;
+            color: #fca5a5;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 12.5px
+        }
+
+        .empty {
+            color: var(--dim);
+            text-align: center;
+            padding: 26px;
+            font-size: 13px
+        }
+
+        .err {
+            background: #3b1d1d;
+            border: 1px solid #7f1d1d;
+            color: #fca5a5;
+            padding: 12px 14px;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            font-size: 13px
+        }
+
+        .verdict {
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-block
+        }
+
+        .verdict.anomalous,
+        .verdict.increase,
+        .verdict.unrelated {
+            background: #5b1414;
+            color: #fca5a5
+        }
+
+        .verdict.within_baseline,
+        .verdict.stable,
+        .verdict.same_entity {
+            background: #14532d;
+            color: #86efac
+        }
+
+        .verdict.related,
+        .verdict.decrease {
+            background: #4a3410;
+            color: #fcd34d
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px
+        }
+
+        .chip {
+            background: var(--panel2);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 5px 11px;
+            font-size: 12px;
+        }
+
+        .chip b {
+            color: var(--acc)
+        }
+
+        .hide {
+            display: none
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        @media(max-width:820px) {
+            .split {
+                grid-template-columns: 1fr
+            }
+        }
+
+        .foot {
+            color: #64748b;
+            font-size: 11.5px;
+            text-align: center;
+            margin-top: 26px
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Forensic Core — <span>תחקור והשוואת ממצאים</span></h1>
+        <div class="pill" id="health">בודק חיבור…</div>
+    </header>
+
+    <div class="tabs">
+        <div class="tab on" data-tab="search">חיפוש היסטורי</div>
+        <div class="tab" data-tab="timeline">ציר זמן</div>
+        <div class="tab" data-tab="compare">השוואה וחריגות</div>
+        <div class="tab" data-tab="audit">יומן ביקורת</div>
+    </div>
+
+    <main>
+
+        <div class="err hide" id="err"></div>
+
+        <!-- ================= חיפוש ================= -->
+        <section id="tab-search">
+            <div class="card">
+                <h2>חיפוש היסטורי</h2>
+                <div class="grid g4" style="margin-bottom:12px">
+                    <div><label>מתאריך</label><input type="datetime-local" id="q-from"></div>
+                    <div><label>עד תאריך</label><input type="datetime-local" id="q-to"></div>
+                    <div>
+                        <label>מצלמה</label>
+                        <select id="q-cam">
+                            <option value="">כל המצלמות</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>אזור</label>
+                        <select id="q-zone">
+                            <option value="">כל האזורים</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid g4" style="margin-bottom:12px">
+                    <div>
+                        <label>סוג אירוע</label>
+                        <select id="q-type">
+                            <option value="">הכל</option>
+                            <option value="vehicle_seen">vehicle_seen</option>
+                            <option value="person_seen">person_seen</option>
+                            <option value="line_cross">line_cross</option>
+                            <option value="loitering">loitering</option>
+                            <option value="crowd">crowd</option>
+                        </select>
+                    </div>
+                    <div><label>לוחית (חלקית)</label><input id="q-plate" placeholder="לדוגמה 345"></div>
+                    <div><label>ביטחון מינימלי</label><input id="q-conf" type="number" step="0.05" min="0" max="1"
+                            placeholder="0.8"></div>
+                    <div><label>מקסימום תוצאות</label><input id="q-limit" type="number" value="50" min="1" max="500">
+                    </div>
+                </div>
+                <div class="row">
+                    <button onclick="runSearch()">חפש</button>
+                    <button class="ghost" onclick="setQuick(1)">24 שעות</button>
+                    <button class="ghost" onclick="setQuick(7)">7 ימים</button>
+                    <button class="ghost" onclick="setQuick(14)">14 ימים</button>
+                    <label style="margin-right:auto; display:flex; align-items:center; gap:4px; color:var(--dim)">
+                        <input type="checkbox" id="q-asc"> מהחדש לישן
+                    </label>
+                </div>
+            </div>
+
+            <div id="s-stats" class="grid g4 hide" style="margin-bottom:16px"></div>
+            <div class="split" id="s-breakdown"></div>
+
+            <div class="card hide" id="s-results">
+                <h2>תוצאות</h2>
+                <div style="overflow-x:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>זמן</th>
+                                <th>סוג</th>
+                                <th>חומרה</th>
+                                <th>מצלמה</th>
+                                <th>אזור</th>
+                                <th>ישות</th>
+                                <th>לוחית</th>
+                                <th>ביטחון</th>
+                            </tr>
+                        </thead>
+                        <tbody id="s-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= ציר זמן ================= -->
+        <section id="tab-timeline" class="hide">
+            <div class="card">
+                <h2>ציר זמן מאוחד</h2>
+                <div class="grid g4" style="margin-bottom:12px">
+                    <div><label>מתאריך</label><input type="datetime-local" id="t-from"></div>
+                    <div><label>עד תאריך</label><input type="datetime-local" id="t-to"></div>
+                    <div><label>ישות (entity_key / לוחית)</label><input id="t-entity" placeholder="ריק = הכל"></div>
+                    <div><label>אזור</label><select id="t-zone">
+                            <option value="">כל האזורים</option>
+                        </select></div>
+                </div>
+                <div class="row">
+                    <button onclick="runTimeline()">בנה ציר זמן</button>
+                    <button class="ghost" onclick="setTlQuick(1)">24 שעות</button>
+                    <button class="ghost" onclick="setTlQuick(3)">3 ימים</button>
+                </div>
+            </div>
+
+            <div id="t-stats" class="grid g4 hide" style="margin-bottom:16px"></div>
+            <div id="t-gaps"></div>
+            <div class="split">
+                <div class="card hide" id="t-flow">
+                    <h2>רצף אירועים</h2>
+                    <div class="tl" id="t-items"></div>
+                </div>
+                <div class="card hide" id="t-tracks">
+                    <h2>מסלולי ישויות</h2>
+                    <div id="t-tracks-body"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= השוואה ================= -->
+        <section id="tab-compare" class="hide">
+            <div class="card">
+                <h2>השוואה</h2>
+                <div class="grid g4" style="margin-bottom:12px">
+                    <div>
+                        <label>סוג השוואה</label>
+                        <select id="c-mode" onchange="switchCompare()">
+                            <option value="vs_baseline">מול שגרה (Baseline)</option>
+                            <option value="period_vs_period">תקופה מול תקופה</option>
+                            <option value="event_vs_event">ישות מול ישות</option>
+                        </select>
+                    </div>
+                    <div><label>אזור לסינון</label><select id="c-zone">
+                            <option value="">כל האזורים</option>
+                        </select></div>
+                </div>
+
+                <div id="c-windows">
+                    <div class="grid g4" style="margin-bottom:12px">
+                        <div><label>תקופה נבדקת — מתאריך</label><input type="datetime-local" id="c-target-from"></div>
+                        <div><label>תקופה נבדקת — עד</label><input type="datetime-local" id="c-target-to"></div>
+                        <div><label>תקופת בסיס — מתאריך</label><input type="datetime-local" id="c-base-from"></div>
+                        <div><label>תקופת בסיס — עד</label><input type="datetime-local" id="c-base-to"></div>
+                    </div>
+                </div>
+
+                <div id="c-entities" class="hide">
+                    <div class="grid g4" style="margin-bottom:12px">
+                        <div><label>ישות א'</label><select id="c-left">
+                                <option value="">— טוען…</option>
+                            </select></div>
+                        <div><label>ישות ב'</label><select id="c-right">
+                                <option value="">— טוען…</option>
+                            </select></div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <button onclick="runCompare()">הרץ השוואה</button>
+                    <button class="ghost" onclick="quickAnomaly()">דמו: יום חריג מול שגרה</button>
+                </div>
+            </div>
+
+            <div id="c-out"></div>
+        </section>
+
+        <!-- ================= יומן ================= -->
+        <section id="tab-audit" class="hide">
+            <div class="card">
+                <h2>יומן ביקורת — שרשרת ראיות</h2>
+                <div class="row" style="margin-bottom:12px">
+                    <button onclick="runAudit()">רענן</button>
+                </div>
+                <div style="overflow-x:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>זמן</th>
+                                <th>משתמש</th>
+                                <th>פעולה</th>
+                                <th>פרטים</th>
+                            </tr>
+                        </thead>
+                        <tbody id="a-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <div class="foot">Forensic Core v1.0 · נתוני הדגמה</div>
+    </main>
+
+    <script>
+        const API = location.origin.startsWith("http") ? location.origin : "http://localhost:8005";
+
+        const $ = id => document.getElementById(id);
+        const pad = n => String(n).padStart(2, "0");
+
+        function toLocalInput(d) {
+            return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+        }
+        function nowLocal() { return toLocalInput(new Date()); }
+        function daysAgoLocal(n) { const d = new Date(); d.setDate(d.getDate() - n); return toLocalInput(d); }
+        function fmt(ts) {
+            const d = new Date(ts);
+            return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+        }
+        function fmtFull(ts) {
+            const d = new Date(ts);
+            return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+        }
+        function esc(s) {
+            return String(s ?? "").replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function showErr(msg) {
+            const el = $("err");
+            if (!msg) { el.classList.add("hide"); return; }
+            el.textContent = msg; el.classList.remove("hide");
+        }
+
+        async function api(path, body) {
+            const opt = { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json" } };
+            if (body) opt.body = JSON.stringify(body);
+            let r;
+            try { r = await fetch(API + path, opt); }
+            catch (e) { throw new Error("אין חיבור לשרת (" + API + "). ודא שה-API רץ."); }
+            if (!r.ok) {
+                let t = await r.text();
+                throw new Error("שגיאת שרת " + r.status + ": " + t.slice(0, 300));
+            }
+            return r.json();
+        }
+
+        document.querySelectorAll(".tab").forEach(t => {
+            t.onclick = () => {
+                document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+                t.classList.add("on");
+                ["search", "timeline", "compare", "audit"].forEach(n => {
+                    $("tab-" + n).classList.toggle("hide", n !== t.dataset.tab);
+                });
+                if (t.dataset.tab === "audit") runAudit();
+                if (t.dataset.tab === "compare") loadEntities();
+            };
+        });
+
+        let CAMERAS = [];
+        let ZONES = [];
+
+        async function boot() {
+            try {
+                const h = await api("/health");
+                $("health").textContent = "מחובר · " + h.status;
+            } catch (e) {
+                $("health").textContent = "לא מחובר";
+                $("health").style.background = "#3b1d1d";
+                $("health").style.color = "#fca5a5";
+                $("health").style.borderColor = "#7f1d1d";
+                showErr(e.message);
+            }
+            try {
+                CAMERAS = await api("/cameras");
+                ZONES = [...new Set(CAMERAS.map(c => c.zone))].sort();
+
+                CAMERAS.forEach(c => {
+                    const o = document.createElement("option");
+                    o.value = c.id; o.textContent = c.name + " (" + c.zone + ")";
+                    $("q-cam").appendChild(o);
+                });
+                ["q-zone", "t-zone", "c-zone"].forEach(id => {
+                    ZONES.forEach(z => {
+                        const o = document.createElement("option");
+                        o.value = z; o.textContent = z;
+                        $(id).appendChild(o);
+                    });
+                });
+            } catch (e) { showErr(e.message); }
+
+            setQuick(14);
+            setTlQuick(1);
+            quickAnomalyFields();
+            runSearch();
+        }
+
+        function setQuick(days) {
+            $("q-from").value = daysAgoLocal(days);
+            $("q-to").value = nowLocal();
+        }
+
+        async function runSearch() {
+            showErr("");
+            const body = {
+                ts_from: new Date($("q-from").value).toISOString(),
+                ts_to: new Date($("q-to").value).toISOString(),
+                limit: parseInt($("q-limit").value) || 50,
+                order: $("q-asc").checked ? "desc" : "asc",
+            };
+            if ($("q-cam").value) body.camera_ids = [$("q-cam").value];
+            if ($("q-zone").value) body.zones = [$("q-zone").value];
+            if ($("q-type").value) body.event_types = [$("q-type").value];
+            if ($("q-plate").value.trim()) body.plate = $("q-plate").value.trim();
+            if ($("q-conf").value) body.min_confidence = parseFloat($("q-conf").value);
+
+            let r;
+            try { r = await api("/search", body); }
+            catch (e) { showErr(e.message); return; }
+
+            const st = $("s-stats");
+            st.classList.remove("hide");
+            st.innerHTML = `
+    <div class="stat"><div class="v">${r.total.toLocaleString()}</div><div class="k">אירועים בסך הכל</div></div>
+    <div class="stat"><div class="v">${Object.keys(r.by_type).length}</div><div class="k">סוגי אירועים</div></div>
+    <div class="stat"><div class="v">${Object.keys(r.by_camera).length}</div><div class="k">מצלמות מעורבות</div></div>
+    <div class="stat"><div class="v">${r.items.length}</div><div class="k">שורות מוצגות</div></div>`;
+
+            const maxType = Math.max(1, ...Object.values(r.by_type));
+            const maxCam = Math.max(1, ...Object.values(r.by_camera));
+            $("s-breakdown").innerHTML = `
+    <div class="card">
+      <h2>פילוח לפי סוג</h2>
+      ${Object.entries(r.by_type).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="width:110px;font-size:12px">${esc(k)}</span>
+          <div class="bar" style="flex:1"><i style="width:${(v / maxType * 100)}%"></i></div>
+          <span class="mono" style="width:44px;text-align:left">${v}</span>
+        </div>`).join("") || '<div class="empty">אין נתונים</div>'}
+    </div>
+    <div class="card">
+      <h2>פילוח לפי מצלמה</h2>
+      ${Object.entries(r.by_camera).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="width:130px;font-size:12px">${esc(k)}</span>
+          <div class="bar" style="flex:1"><i style="width:${(v / maxCam * 100)}%"></i></div>
+          <span class="mono" style="width:44px;text-align:left">${v}</span>
+        </div>`).join("") || '<div class="empty">אין נתונים</div>'}
+    </div>`;
+
+            $("s-results").classList.remove("hide");
+            $("s-rows").innerHTML = r.items.length ? r.items.map(e => `
+    <tr>
+      <td class="mono">${fmt(e.ts)}</td>
+      <td>${esc(e.event_type)}</td>
+      <td><span class="sev ${esc(e.severity)}">${esc(e.severity)}</span></td>
+      <td>${esc((CAMERAS.find(c => c.id === e.camera_id) || {}).name || "—")}</td>
+      <td>${esc(e.zone)}</td>
+      <td class="mono">${esc(e.entity_key || "—")}</td>
+      <td class="mono">${esc(e.plate || "—")}</td>
+      <td class="mono">${(e.confidence * 100).toFixed(0)}%</td>
+    </tr>`).join("") : `<tr><td colspan="8"><div class="empty">אין תוצאות לטווח הזה</div></td></tr>`;
+        }
+
+        function setTlQuick(days) {
+            $("t-from").value = daysAgoLocal(days);
+            $("t-to").value = nowLocal();
+        }
+
+        async function runTimeline() {
+            showErr("");
+            const body = {
+                ts_from: new Date($("t-from").value).toISOString(),
+                ts_to: new Date($("t-to").value).toISOString(),
+            };
+            if ($("t-entity").value.trim()) body.entity_key = $("t-entity").value.trim();
+            if ($("t-zone").value) body.zones = [$("t-zone").value];
+
+            let r;
+            try { r = await api("/timeline", body); }
+            catch (e) { showErr(e.message); return; }
+
+            const trackCount = Object.keys(r.tracks).length;
+            $("t-stats").classList.remove("hide");
+            $("t-stats").innerHTML = `
+    <div class="stat"><div class="v">${r.items.length}</div><div class="k">אירועים על הציר</div></div>
+    <div class="stat"><div class="v">${trackCount}</div><div class="k">מסלולי ישויות</div></div>
+    <div class="stat"><div class="v" style="color:${r.gaps.length ? 'var(--bad)' : 'var(--ok)'}">${r.gaps.length}</div><div class="k">חורי תיעוד</div></div>
+    <div class="stat"><div class="v">${new Set(r.items.map(i => i.camera_name)).size}</div><div class="k">מצלמות</div></div>`;
+
+            $("t-gaps").innerHTML = r.gaps.length ? r.gaps.map(g => `
+    <div class="gap">⚠ חור תיעוד במצלמה <b>${esc((CAMERAS.find(c => c.id === g.camera_id) || {}).name || g.camera_id.slice(0, 8))}</b>
+      &nbsp;·&nbsp; ${fmtFull(g.from)} &nbsp;→&nbsp; ${fmtFull(g.to)}</div>`).join("") : "";
+
+            const flow = $("t-flow"), items = $("t-items");
+            flow.classList.remove("hide");
+            if (r.items.length) {
+                const show = r.items.slice(0, 120);
+                items.innerHTML = show.map(i => {
+                    const cls = (i.severity === "high" || i.severity === "critical") ? "bad"
+                        : i.severity === "medium" ? "warn" : "";
+                    return `<div class="tl-item ${cls}">
+        <div class="tl-time">${fmtFull(i.ts)}</div>
+        <div class="tl-body">
+          <b>${esc(i.event_type)}</b> · ${esc(i.camera_name)} · ${esc(i.zone)}
+          ${i.entity_key ? ' · <span class="mono" style="color:var(--acc)">' + esc(i.entity_key) + '</span>' : ''}
+        </div>
+      </div>`;
+                }).join("") + (r.items.length > 120 ? `<div class="empty">מוצגים 120 מתוך ${r.items.length}</div>` : "");
+            } else {
+                items.innerHTML = '<div class="empty">אין אירועים בטווח</div>';
+            }
+
+            const tb = $("t-tracks"), tbody = $("t-tracks-body");
+            const keys = Object.keys(r.tracks);
+            if (keys.length) {
+                tb.classList.remove("hide");
+                tbody.innerHTML = keys.slice(0, 15).map(k => `
+      <div class="track">
+        <div class="track-name">${esc(k)} <span style="color:var(--dim);font-weight:400">· ${r.tracks[k].length} אירועים</span></div>
+        <div style="font-size:12px;color:var(--dim)">
+          ${r.tracks[k].map(i => `${fmt(i.ts)} ${esc(i.camera_name)}`).slice(0, 6).join(' &nbsp;→&nbsp; ')}
+          ${r.tracks[k].length > 6 ? ' …' : ''}
+        </div>
+      </div>`).join("") + (keys.length > 15 ? `<div class="empty">מוצגים 15 מתוך ${keys.length} מסלולים</div>` : "");
+            } else {
+                tb.classList.add("hide");
+            }
+        }
+
+        function switchCompare() {
+            const m = $("c-mode").value;
+            $("c-windows").classList.toggle("hide", m === "event_vs_event");
+            $("c-entities").classList.toggle("hide", m !== "event_vs_event");
+        }
+
+        function quickAnomalyFields() {
+            $("c-target-from").value = daysAgoLocal(4);
+            $("c-target-to").value = daysAgoLocal(3);
+            $("c-base-from").value = daysAgoLocal(11);
+            $("c-base-to").value = daysAgoLocal(10);
+        }
+
+        function quickAnomaly() {
+            $("c-mode").value = "vs_baseline";
+            switchCompare();
+            quickAnomalyFields();
+            document.querySelector('.tab[data-tab="compare"]').click();
+            setTimeout(runCompare, 150);
+        }
+
+        async function loadEntities() {
+            try {
+                const r = await api("/search", { event_types: ["vehicle_seen"], limit: 200 });
+                const keys = [...new Set(r.items.map(e => e.entity_key).filter(Boolean))].sort().slice(0, 50);
+                ["c-left", "c-right"].forEach(id => {
+                    $(id).innerHTML = keys.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join("");
+                });
+                if (keys.length > 1) $("c-right").selectedIndex = 1;
+            } catch (e) { }
+        }
+
+        async function runCompare() {
+            showErr("");
+            const mode = $("c-mode").value;
+            const body = { mode };
+            const zone = $("c-zone").value;
+            if (zone) body.zones = [zone];
+
+            if (mode === "event_vs_event") {
+                if (!$("c-left").value || !$("c-right").value) { showErr("בחר שתי ישויות"); return; }
+                body.left_entity = $("c-left").value;
+                body.right_entity = $("c-right").value;
+            } else {
+                const tw = {
+                    ts_from: new Date($("c-target-from").value).toISOString(),
+                    ts_to: new Date($("c-target-to").value).toISOString(),
+                };
+                const bw = {
+                    ts_from: new Date($("c-base-from").value).toISOString(),
+                    ts_to: new Date($("c-base-to").value).toISOString(),
+                };
+                if (mode === "vs_baseline") { body.target_window = tw; body.baseline_window = bw; }
+                else { body.left_window = tw; body.right_window = bw; }
+            }
+
+            let r;
+            try { r = await api("/compare", body); }
+            catch (e) { showErr(e.message); return; }
+
+            const devs = (r.deltas && r.deltas.deviations) || [];
+
+            let html = `
+    <div class="card">
+      <h2>מסקנה</h2>
+      <div style="margin-bottom:10px"><span class="verdict ${esc(r.verdict)}">${esc(r.verdict)}</span></div>
+      <div style="font-size:14px;line-height:1.6">${esc(r.summary)}</div>
+    </div>`;
+
+            if (mode === "vs_baseline") {
+                html += `<div class="card">
+      <h2>חריגות שזוהו (סטייה של 30% ומעלה)</h2>
+      ${devs.length ? `
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>ממד</th><th>ערך</th><th>בסיס</th><th>נבדק</th><th>שינוי</th></tr></thead>
+          <tbody>${devs.map(d => `
+            <tr>
+              <td>${esc(d.dimension)}</td>
+              <td class="mono">${esc(d.key)}</td>
+              <td class="mono">${d.baseline}</td>
+              <td class="mono">${d.target}</td>
+              <td class="mono" style="color:var(--bad)">${d.pct_change === null ? "—" : d.pct_change + "%"}</td>
+            </tr>`).join("")}</tbody>
+        </table></div>` : '<div class="empty">לא נמצאו חריגות</div>'}
+    </div>`;
+            }
+
+            html += `<div class="split">
+    ${sideCard("תקופה נבדקת / ישות א'", r.left)}
+    ${sideCard(mode === "event_vs_event" ? "ישות ב'" : "תקופת בסיס", r.right)}
+  </div>`;
+
+            $("c-out").innerHTML = html;
+        }
+
+        function sideCard(title, obj) {
+            const chips = [];
+            if (obj.event_count !== undefined) chips.push(`<span class="chip">אירועים: <b>${obj.event_count}</b></span>`);
+            if (obj.events_per_hour !== undefined) chips.push(`<span class="chip">לשעה: <b>${obj.events_per_hour}</b></span>`);
+            if (obj.duration_hours !== undefined) chips.push(`<span class="chip">שעות: <b>${obj.duration_hours}</b></span>`);
+            if (obj.unique_entities !== undefined) chips.push(`<span class="chip">ישויות: <b>${obj.unique_entities}</b></span>`);
+            if (obj.first_seen) chips.push(`<span class="chip">נראה לראשונה: <b>${fmt(obj.first_seen)}</b></span>`);
+
+            let detail = "";
+            if (obj.by_type) detail += kvBlock("לפי סוג", obj.by_type);
+            if (obj.by_zone) detail += kvBlock("לפי אזור", obj.by_zone);
+            if (obj.by_severity) detail += kvBlock("לפי חומרה", obj.by_severity);
+            if (obj.zones) detail += `<div style="margin-top:8px;font-size:12px;color:var(--dim)">אזורים: ${obj.zones.map(esc).join(", ") || "—"}</div>`;
+            if (obj.plates) detail += `<div style="margin-top:4px;font-size:12px;color:var(--dim)">לוחיות: ${obj.plates.map(esc).join(", ") || "—"}</div>`;
+
+            return `<div class="card"><h2>${esc(title)}</h2>
+    <div class="chips" style="margin-bottom:10px">${chips.join("")}</div>${detail}</div>`;
+        }
+
+        function kvBlock(title, obj) {
+            const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+            if (!entries.length) return "";
+            return `<div style="margin-top:10px">
+    <div style="font-size:11.5px;color:var(--dim);margin-bottom:5px">${title}</div>
+    <div class="chips">${entries.map(([k, v]) => `<span class="chip">${esc(k)}: <b>${v}</b></span>`).join("")}</div>
+  </div>`;
+        }
+
+        async function runAudit() {
+            showErr("");
+            let r;
+            try { r = await api("/audit?limit=100"); }
+            catch (e) { showErr(e.message); return; }
+            $("a-rows").innerHTML = r.length ? r.map(a => `
+    <tr>
+      <td class="mono">${fmtFull(a.ts)}</td>
+      <td>${esc(a.user)}</td>
+      <td><span class="chip">${esc(a.action)}</span></td>
+      <td class="mono" style="white-space:normal;max-width:520px;font-size:11px;color:var(--dim)">
+        ${esc(JSON.stringify(a.detail) || "").slice(0, 240)}
+      </td>
+    </tr>`).join("") : `<tr><td colspan="4"><div class="empty">היומן ריק</div></td></tr>`;
+        }
+
+        boot();
+    </script>
+</body>
+
+</html>
