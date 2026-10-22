@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # שולחים את הסקריפט לתוך הקונטיינר ומריצים אותו שם
-docker compose exec -T api python - <<'PY'
+docker compose exec -T forensic python - <<'PY'
 import json
 import urllib.error
 import urllib.request

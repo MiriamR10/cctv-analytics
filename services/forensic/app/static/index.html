@@ -455,6 +455,8 @@
         <div class="tab on" data-tab="search">חיפוש היסטורי</div>
         <div class="tab" data-tab="timeline">ציר זמן</div>
         <div class="tab" data-tab="compare">השוואה וחריגות</div>
+        <div class="tab" data-tab="alerts">התרעות וחריגות AI</div>
+        <div class="tab" data-tab="rules">חוקי התרעה</div>
         <div class="tab" data-tab="audit">יומן ביקורת</div>
     </div>
 
@@ -492,6 +494,9 @@
                             <option value="line_cross">line_cross</option>
                             <option value="loitering">loitering</option>
                             <option value="crowd">crowd</option>
+                            <option value="object_seen">object_seen</option>
+                            <option value="anomaly">anomaly (AI)</option>
+                            <option value="rule_alert">rule_alert</option>
                         </select>
                     </div>
                     <div><label>לוחית (חלקית)</label><input id="q-plate" placeholder="לדוגמה 345"></div>
@@ -616,6 +621,116 @@
             <div id="c-out"></div>
         </section>
 
+        <!-- ================= התרעות וחריגות AI ================= -->
+        <section id="tab-alerts" class="hide">
+            <div class="card">
+                <h2>מודל זיהוי חריגות</h2>
+                <div id="m-status" class="chips" style="margin-bottom:12px"><span class="chip">טוען…</span></div>
+                <div class="row">
+                    <button onclick="aiSetup()">הכנה מלאה: סנכרון, אימון וסריקת 14 ימים</button>
+                    <button class="ghost" onclick="aiRun('sync')">סנכרון אירועים</button>
+                    <button class="ghost" onclick="aiRun('train')">אימון מודל</button>
+                    <button class="ghost" onclick="aiRun('score')">סריקת השעה האחרונה</button>
+                    <button class="ghost" onclick="aiRun('rules')">הרצת חוקים</button>
+                </div>
+                <div id="m-log" style="margin-top:10px;font-size:12px;color:var(--dim)"></div>
+            </div>
+
+            <div class="card">
+                <h2>ממצאים</h2>
+                <div class="grid g4" style="margin-bottom:12px">
+                    <div><label>מקור</label><select id="f-kind">
+                            <option value="">הכל</option>
+                            <option value="model">חריגה משגרה (מודל)</option>
+                            <option value="rule">חוק התרעה</option>
+                        </select></div>
+                    <div><label>חומרה</label><select id="f-sev">
+                            <option value="">הכל</option>
+                            <option value="critical">critical</option>
+                            <option value="high">high</option>
+                            <option value="medium">medium</option>
+                            <option value="low">low</option>
+                        </select></div>
+                    <div><label>סטטוס</label><select id="f-status">
+                            <option value="">הכל</option>
+                            <option value="new">חדש</option>
+                            <option value="acknowledged">נצפה</option>
+                            <option value="confirmed">אושר</option>
+                            <option value="false_positive">התרעת שווא</option>
+                        </select></div>
+                    <div><label>מצלמה</label><select id="f-cam">
+                            <option value="">הכל</option>
+                        </select></div>
+                </div>
+                <div class="row"><button onclick="loadFindings()">הצג</button></div>
+            </div>
+
+            <div id="f-stats" class="grid g4 hide" style="margin-bottom:16px"></div>
+            <div class="card">
+                <div style="overflow-x:auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>זמן</th>
+                                <th>מקור</th>
+                                <th>חומרה</th>
+                                <th>ציון</th>
+                                <th>מצלמה</th>
+                                <th>ממצא</th>
+                                <th>סטטוס</th>
+                                <th>משוב</th>
+                            </tr>
+                        </thead>
+                        <tbody id="f-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= חוקי התרעה ================= -->
+        <section id="tab-rules" class="hide">
+            <div class="card">
+                <h2>חוק חדש</h2>
+                <div class="grid g4" style="margin-bottom:12px">
+                    <div><label>שם</label><input id="r-name" placeholder="לדוגמה: רכב ברשימת מעקב"></div>
+                    <div><label>סוג</label><select id="r-type" onchange="ruleTemplate()">
+                            <option value="watchlist">רשימת מעקב (לוחיות)</option>
+                            <option value="restricted_hours">פעילות בשעות אסורות</option>
+                            <option value="max_dwell">שהייה ממושכת</option>
+                            <option value="count_threshold">עומס / מיעוט פעילות</option>
+                            <option value="entity_frequency">הופעה חוזרת של ישות</option>
+                        </select></div>
+                    <div><label>חומרה</label><select id="r-sev">
+                            <option value="high">high</option>
+                            <option value="critical">critical</option>
+                            <option value="medium">medium</option>
+                            <option value="low">low</option>
+                        </select></div>
+                </div>
+                <label>פרמטרים (JSON)</label>
+                <textarea id="r-params" rows="5" class="mono" style="width:100%;padding:8px 10px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;direction:ltr"></textarea>
+                <div style="font-size:11.5px;color:var(--dim);margin:6px 0 12px">
+                    שמות מצלמות ב-<span class="mono">scope.source_ids</span> ואזורים ב-<span class="mono">scope.zone_ids</span>, כפי שהם מופיעים במערכת.
+                </div>
+                <div class="row"><button onclick="saveRule()">שמור חוק</button></div>
+            </div>
+            <div class="card">
+                <h2>חוקים פעילים</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>שם</th>
+                            <th>סוג</th>
+                            <th>חומרה</th>
+                            <th>פרמטרים</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="r-rows"></tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- ================= יומן ================= -->
         <section id="tab-audit" class="hide">
             <div class="card">
@@ -639,7 +754,7 @@
             </div>
         </section>
 
-        <div class="foot">Forensic Core v1.0 · נתוני הדגמה</div>
+        <div class="foot">Forensic Core v1.1 · זיהוי חריגות: Isolation Forest</div>
     </main>
 
     <script>
@@ -687,11 +802,13 @@
             t.onclick = () => {
                 document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
                 t.classList.add("on");
-                ["search", "timeline", "compare", "audit"].forEach(n => {
+                ["search", "timeline", "compare", "alerts", "rules", "audit"].forEach(n => {
                     $("tab-" + n).classList.toggle("hide", n !== t.dataset.tab);
                 });
                 if (t.dataset.tab === "audit") runAudit();
                 if (t.dataset.tab === "compare") loadEntities();
+                if (t.dataset.tab === "alerts") { loadModelStatus(); loadFindings(); }
+                if (t.dataset.tab === "rules") { loadRules(); if (!$("r-params").value) ruleTemplate(); }
             };
         });
 
@@ -717,6 +834,9 @@
                     const o = document.createElement("option");
                     o.value = c.id; o.textContent = c.name + " (" + c.zone + ")";
                     $("q-cam").appendChild(o);
+                    const f = document.createElement("option");
+                    f.value = c.name; f.textContent = c.name;
+                    $("f-cam").appendChild(f);
                 });
                 ["q-zone", "t-zone", "c-zone"].forEach(id => {
                     ZONES.forEach(z => {
@@ -987,6 +1107,157 @@
     <div style="font-size:11.5px;color:var(--dim);margin-bottom:5px">${title}</div>
     <div class="chips">${entries.map(([k, v]) => `<span class="chip">${esc(k)}: <b>${v}</b></span>`).join("")}</div>
   </div>`;
+        }
+
+        // ================= anomaly service (via /anomaly-api proxy) =================
+        const AI = "/anomaly-api";
+        const KIND_LABEL = { model: "חריגה משגרה", rule: "חוק" };
+        const STATUS_LABEL = { new: "חדש", acknowledged: "נצפה", confirmed: "אושר", false_positive: "התרעת שווא" };
+        const FEATURE_LABEL = {
+            event_count: "מספר אירועים", unique_entities: "ישויות שונות",
+            avg_dwell_seconds: "זמן שהייה", avg_confidence: "רמת ביטחון",
+        };
+
+        function aiLog(msg) { $("m-log").textContent = msg; }
+
+        async function loadModelStatus() {
+            let versions = [], sync = {};
+            try { versions = await api(AI + "/model/versions"); } catch (e) { showErr(e.message); return; }
+            try { sync = await api(AI + "/sync/status"); } catch (e) { }
+            const active = versions.find(v => v.is_active);
+            const chips = [];
+            if (active) {
+                chips.push(`<span class="chip">מודל פעיל: <b>${esc(active.detector_class.split(":").pop())}</b></span>`);
+                chips.push(`<span class="chip">גרסה: <b>#${active.id}</b></span>`);
+                chips.push(`<span class="chip">אומן: <b>${fmtFull(active.trained_at)}</b></span>`);
+                chips.push(`<span class="chip">סדרות: <b>${active.metrics.series ?? "—"}</b></span>`);
+            } else {
+                chips.push(`<span class="chip">אין מודל פעיל. לחצו "הכנה מלאה".</span>`);
+            }
+            chips.push(`<span class="chip">סנכרון: <b>${sync.cursor_ts ? fmtFull(sync.cursor_ts) : "טרם רץ"}</b></span>`);
+            $("m-status").innerHTML = chips.join("");
+        }
+
+        async function aiRun(action, quiet) {
+            showErr("");
+            const paths = { sync: "/run/sync", train: "/model/train", score: "/run/score", rules: "/run/rules" };
+            const labels = { sync: "מסנכרן", train: "מאמן", score: "סורק", rules: "מריץ חוקים" };
+            aiLog(labels[action] + "…");
+            try {
+                const r = await api(AI + paths[action], {});
+                const text = action === "sync" ? `יובאו ${r.imported} אירועים`
+                    : action === "train" ? `מודל #${r.id} אומן על ${r.metrics.series} סדרות`
+                        : `${r.new_findings} ממצאים חדשים`;
+                if (!quiet) { aiLog(text); loadModelStatus(); loadFindings(); }
+                return text;
+            } catch (e) { aiLog(""); showErr(e.message); throw e; }
+        }
+
+        async function aiSetup() {
+            try {
+                const steps = [await aiRun("sync", true)];
+                aiLog("מאמן מודל…");
+                steps.push(await aiRun("train", true));
+                aiLog("סורק 14 ימים אחורה…");
+                const since = new Date(Date.now() - 14 * 864e5).toISOString();
+                const r = await api(AI + "/run/score?since=" + encodeURIComponent(since), {});
+                steps.push(`${r.new_findings} חריגות נמצאו`);
+                steps.push(await aiRun("rules", true));
+                aiLog(steps.join(" · "));
+                loadModelStatus(); loadFindings();
+            } catch (e) { showErr(e.message); }
+        }
+
+        function describeFinding(f) {
+            const ex = f.explanation || {};
+            const top = (ex.contributions || [])[0];
+            if (f.kind === "model" && top) {
+                const arrow = top.direction === "above" ? "↑" : "↓";
+                return `${esc(FEATURE_LABEL[top.feature] || top.feature)} ${arrow} ${top.observed} (צפוי ${top.expected})`;
+            }
+            return esc(f.title);
+        }
+
+        async function loadFindings() {
+            const params = new URLSearchParams({ limit: "200" });
+            [["f-kind", "kind"], ["f-sev", "severity"], ["f-status", "status"], ["f-cam", "source_id"]]
+                .forEach(([id, key]) => { if ($(id).value) params.set(key, $(id).value); });
+            let rows;
+            try { rows = await api(AI + "/findings?" + params); } catch (e) { showErr(e.message); return; }
+
+            const count = k => rows.filter(k).length;
+            $("f-stats").classList.remove("hide");
+            $("f-stats").innerHTML = `
+    <div class="stat"><div class="v">${rows.length}</div><div class="k">ממצאים מוצגים</div></div>
+    <div class="stat"><div class="v">${count(f => f.kind === "model")}</div><div class="k">חריגות משגרה</div></div>
+    <div class="stat"><div class="v">${count(f => f.kind === "rule")}</div><div class="k">התרעות חוקים</div></div>
+    <div class="stat"><div class="v">${count(f => f.severity === "critical" || f.severity === "high")}</div><div class="k">חומרה גבוהה</div></div>`;
+
+            $("f-rows").innerHTML = rows.length ? rows.map(f => `
+    <tr>
+      <td class="mono">${fmt(f.occurred_at)}</td>
+      <td>${esc(KIND_LABEL[f.kind] || f.kind)}</td>
+      <td><span class="sev ${esc(f.severity)}">${esc(f.severity)}</span></td>
+      <td><div class="bar"><i style="width:${(f.score * 100).toFixed(0)}%"></i></div></td>
+      <td>${esc(f.source_id || "—")}</td>
+      <td style="white-space:normal;max-width:420px">${describeFinding(f)}</td>
+      <td>${esc(STATUS_LABEL[f.status] || f.status)}</td>
+      <td style="white-space:nowrap">
+        <button class="ghost" style="padding:4px 9px" onclick="feedback(${f.id},'confirmed')" title="אמיתי">✓</button>
+        <button class="ghost" style="padding:4px 9px" onclick="feedback(${f.id},'false_positive')" title="התרעת שווא">✗</button>
+      </td>
+    </tr>`).join("") : `<tr><td colspan="8"><div class="empty">אין ממצאים. לחצו "הכנה מלאה" כדי להפעיל את המודל.</div></td></tr>`;
+        }
+
+        async function feedback(id, status) {
+            try { await api(AI + `/findings/${id}/feedback`, { status }); loadFindings(); }
+            catch (e) { showErr(e.message); }
+        }
+
+        const RULE_TEMPLATES = {
+            watchlist: { entity_ids: ["12345678"] },
+            restricted_hours: { time_range: { start: "00:00", end: "05:00" }, scope: { entity_types: ["vehicle"] } },
+            max_dwell: { max_seconds: 600 },
+            count_threshold: { window_minutes: 60, operator: "gt", threshold: 30, group_by: "zone" },
+            entity_frequency: { period_minutes: 1440, min_occurrences: 8 },
+        };
+
+        function ruleTemplate() {
+            $("r-params").value = JSON.stringify(RULE_TEMPLATES[$("r-type").value], null, 2);
+        }
+
+        async function loadRules() {
+            let rows;
+            try { rows = await api(AI + "/rules"); } catch (e) { showErr(e.message); return; }
+            $("r-rows").innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${esc(r.name)}</td>
+      <td class="mono">${esc(r.rule_type)}</td>
+      <td><span class="sev ${esc(r.severity)}">${esc(r.severity)}</span></td>
+      <td class="mono" style="white-space:normal;max-width:480px;font-size:11px;direction:ltr;text-align:left">${esc(JSON.stringify(r.params))}</td>
+      <td><button class="ghost" style="padding:4px 9px" onclick="deleteRule(${r.id})">מחק</button></td>
+    </tr>`).join("") : `<tr><td colspan="5"><div class="empty">אין חוקים</div></td></tr>`;
+        }
+
+        async function saveRule() {
+            showErr("");
+            let params;
+            try { params = JSON.parse($("r-params").value); }
+            catch (e) { showErr("הפרמטרים אינם JSON תקין"); return; }
+            const body = {
+                name: $("r-name").value.trim() || $("r-type").selectedOptions[0].textContent,
+                rule_type: $("r-type").value, severity: $("r-sev").value, params,
+            };
+            try { await api(AI + "/rules", body); $("r-name").value = ""; loadRules(); }
+            catch (e) { showErr(e.message); }
+        }
+
+        async function deleteRule(id) {
+            try {
+                const r = await fetch(API + AI + "/rules/" + id, { method: "DELETE" });
+                if (!r.ok) throw new Error("שגיאת שרת " + r.status);
+                loadRules();
+            } catch (e) { showErr(e.message); }
         }
 
         async function runAudit() {

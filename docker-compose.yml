@@ -1,6 +1,6 @@
 # CCTV Analytics — full system.
 #
-#   docker compose up -d --build          # db + forensic (UI) + detection API
+#   docker compose up -d --build          # db + forensic (UI) + anomaly + detection API
 #   docker compose run --rm lpr           # LPR batch run on a video
 #
 # Any *.crt placed in ./certs is trusted by every image at build time.
@@ -35,6 +35,7 @@ services:
     container_name: cctv-forensic
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-forensic}:${POSTGRES_PASSWORD:-forensic}@db:5432/${POSTGRES_DB:-forensic}
+      ANOMALY_URL: http://anomaly:8010
     depends_on:
       db:
         condition: service_healthy
@@ -44,6 +45,53 @@ services:
       test: ["CMD", "curl", "-fs", "http://localhost:8005/health"]
       interval: 5s
       retries: 20
+    restart: unless-stopped
+
+  # ------------------------------ pattern & anomaly detection, rules, alerts (AI)
+  # Reads events from the forensic tables (same DB, own schema "anomaly"),
+  # and publishes findings back to forensic as "anomaly" / "rule_alert" events.
+  anomaly:
+    build:
+      context: ./services/anomaly
+      <<: *build-certs
+    image: cctv-analytics/anomaly:latest
+    container_name: cctv-anomaly
+    environment: &anomaly-env
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-forensic}:${POSTGRES_PASSWORD:-forensic}@db:5432/${POSTGRES_DB:-forensic}
+      DB_SCHEMA: anomaly
+      FORENSIC_URL: http://forensic:8005
+      FORENSIC_SYNC: "true"
+      TIMEZONE: ${TIMEZONE:-Asia/Jerusalem}
+      CORS_ORIGINS: '["http://localhost:${FORENSIC_PORT:-8005}"]'
+      DETECTOR_CLASS: ${ANOMALY_DETECTOR:-app.detection.isolation_forest:IsolationForestDetector}
+      DETECTOR_PARAMS: ${ANOMALY_DETECTOR_PARAMS:-{}}
+      MODEL_DIR: /models/store
+      ALERT_MIN_SEVERITY: ${ALERT_MIN_SEVERITY:-medium}
+      WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    volumes: &anomaly-volumes
+      - anomaly-models:/models/store
+    depends_on:
+      forensic:
+        condition: service_healthy
+    ports:
+      - "${ANOMALY_PORT:-8010}:8010"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8010/health"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Background loop: sync from forensic, rules, scoring, nightly retraining.
+  # Exactly one instance.
+  anomaly-worker:
+    image: cctv-analytics/anomaly:latest
+    container_name: cctv-anomaly-worker
+    command: ["python", "-m", "app.worker"]
+    environment: *anomaly-env
+    volumes: *anomaly-volumes
+    depends_on:
+      anomaly:
+        condition: service_healthy
     restart: unless-stopped
 
   # ------------------------------------------- object detection API (on demand)
@@ -103,3 +151,4 @@ services:
 volumes:
   pgdata:
   detection-data:
+  anomaly-models:

@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+.venv
+venv
+.pytest_cache
+.ruff_cache
+*.egg-info
+*.db
+model_store
+models
+tests

@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from . import logic
+from . import anomaly_proxy, logic
 from .db import get_session, init_db
 from .models import AuditLog, Camera, Event, Segment
 from .schemas import (
@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Forensic Core", version="1.0", lifespan=lifespan)
+app.include_router(anomaly_proxy.router)
 
 
 async def _log(session: AsyncSession, user: str, action: str, detail: dict | None = None):

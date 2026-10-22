@@ -2,9 +2,9 @@
 נתוני דמה: 3 מצלמות, 14 יום של סגמנטים ואירועים.
 
 הרצה:
-    docker compose exec api python -m app.seed
-    docker compose exec api python -m app.seed --reset    # מוחק הכל ובונה מחדש
-    docker compose exec api python -m app.seed --days 30
+    docker compose exec forensic python -m app.seed
+    docker compose exec forensic python -m app.seed --reset    # מוחק הכל ובונה מחדש
+    docker compose exec forensic python -m app.seed --days 30
 
 מה בנתונים (כדי שיהיה מה לבדוק):
   * 3 מצלמות ב-3 אזורים שונים
